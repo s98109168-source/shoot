@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>歡樂大砲碰碰樂 - 保齡球大挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Mochiyom+Pop+P+One&family=Noto+Sans+TC:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Fredoka One', 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            overflow: hidden;
+        }
+        .btn-bounce {
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-bounce:active {
+            transform: scale(0.9);
+        }
+        .text-stroke {
+            -webkit-text-stroke: 2px #2d3748;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between relative overflow-hidden bg-sky-200">
+
+    <!-- 頂部資訊列 -->
+    <header class="w-full p-3 sm:p-4 flex justify-between items-center z-10 pointer-events-none">
+        <div class="flex items-center space-x-2 bg-white/80 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border-4 border-yellow-300 pointer-events-auto">
+            <span class="text-2xl sm:text-3xl">⭐</span>
+            <span id="score-display" class="text-2xl sm:text-3xl font-black text-amber-500">0</span>
+        </div>
+
+        <div class="bg-white/80 backdrop-blur-md rounded-2xl px-5 py-2 shadow-lg border-4 border-pink-300 text-center pointer-events-auto">
+            <div id="level-title" class="text-lg sm:text-2xl font-black text-pink-500">第 1 關：歡樂大碰撞</div>
+            <div id="level-desc" class="text-xs sm:text-sm text-gray-600 font-bold">用大砲擊倒所有保齡球吧！</div>
+        </div>
+
+        <div class="flex items-center space-x-2 bg-white/80 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border-4 border-blue-300 pointer-events-auto">
+            <span class="text-2xl sm:text-3xl">💣</span>
+            <span id="balls-left" class="text-2xl sm:text-3xl font-black text-blue-500">5</span>
+        </div>
+    </header>
+
+    <!-- 遊戲主要畫布區域 -->
+    <main class="relative flex-1 w-full h-full flex items-center justify-center">
+        <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+        <!-- 慶祝提示文字Overlay -->
+        <div id="cheer-overlay" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-0 transition-all duration-300 transform scale-50">
+            <h1 id="cheer-text" class="text-5xl sm:text-8xl font-black text-yellow-400 drop-shadow-[0_5px_5px_rgba(0,0,0,0.4)] text-stroke animate-bounce">
+                太棒了！🌟
+            </h1>
+        </div>
+    </main>
+
+    <!-- 底部控制按鈕 -->
+    <footer class="w-full p-4 flex justify-center items-center space-x-3 sm:space-x-6 z-10">
+        <button id="btn-fire" class="btn-bounce bg-gradient-to-b from-rose-400 to-red-500 hover:from-rose-500 hover:to-red-600 text-white font-black text-xl sm:text-3xl px-6 sm:px-10 py-3 sm:py-4 rounded-full shadow-lg border-4 border-white flex items-center gap-2 transform active:scale-95">
+            <span>🚀 發射大砲！</span>
+        </button>
+
+        <button id="btn-skin" class="btn-bounce bg-gradient-to-b from-purple-400 to-indigo-500 hover:from-purple-500 hover:to-indigo-600 text-white font-black text-lg sm:text-2xl px-5 sm:px-8 py-3 sm:py-4 rounded-full shadow-lg border-4 border-white flex items-center gap-2">
+            <span>🌈 彩虹大砲</span>
+        </button>
+
+        <button id="btn-reset" class="btn-bounce bg-gradient-to-b from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-black text-lg sm:text-2xl px-5 sm:px-8 py-3 sm:py-4 rounded-full shadow-lg border-4 border-white flex items-center gap-2">
+            <span>🔄 重來</span>
+        </button>
+    </footer>
+
+    <!-- 結算彈窗 Modal -->
+    <div id="victory-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300 pointer-events-none">
+        <div class="bg-gradient-to-b from-yellow-100 to-amber-50 rounded-3xl border-8 border-yellow-300 p-6 sm:p-8 max-w-md w-11/12 text-center shadow-2xl transform scale-90 transition-transform duration-300" id="modal-card">
+            <h2 class="text-3xl sm:text-4xl font-black text-amber-600 mb-2">🎉 挑戰成功！ 🎉</h2>
+            <p class="text-gray-600 text-lg font-bold mb-4">小寶貝你太厲害囉！</p>
+            
+            <div id="star-rating" class="flex justify-center space-x-2 text-5xl sm:text-6xl my-4">
+                <span class="animate-bounce" style="animation-delay: 0.1s">⭐</span>
+                <span class="animate-bounce" style="animation-delay: 0.2s">⭐</span>
+                <span class="animate-bounce" style="animation-delay: 0.3s">⭐</span>
+            </div>
+
+            <div class="bg-white/80 rounded-2xl p-4 my-4 shadow-inner">
+                <p class="text-xl font-black text-gray-700">獲得分數: <span id="final-score" class="text-amber-500 text-3xl">0</span></p>
+            </div>
+
+            <div class="flex justify-center space-x-4 mt-6">
+                <button id="btn-next-level" class="btn-bounce bg-gradient-to-b from-green-400 to-emerald-600 text-white text-xl sm:text-2xl font-black px-8 py-3 rounded-full border-4 border-white shadow-lg cursor-pointer">
+                    下一關 ➡️
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SoundEffects {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playPop() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playCannon() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+
+            playWoodHit() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(110, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playGlassBreak() {
+                this.init();
+                for(let i = 0; i < 3; i++) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1200 + i*400, this.ctx.currentTime + i*0.02);
+                    osc.frequency.exponentialRampToValueAtTime(2000 + i*300, this.ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime + i*0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + i*0.02);
+                    osc.stop(this.ctx.currentTime + 0.15);
+                }
+            }
+
+            playMetalDing() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            }
+
+            playCheer() {
+                this.init();
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.1);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.1 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.1);
+                    osc.stop(this.ctx.currentTime + idx * 0.1 + 0.3);
+                });
+            }
+        }
+
+        const sound = new SoundEffects();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        function resize() {
+            width = canvas.width = canvas.parentElement.clientWidth;
+            height = canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+
+        let currentLevel = 1;
+        let score = 0;
+        let ballsLeft = 5;
+        let cannonSkins = ['🌈 彩虹大砲', '⭐ 星星大砲', '🍓 草莓大砲'];
+        let currentSkinIndex = 0;
+        let isLevelCleared = false;
+        let levelClearTimeout = null;
+
+        const cannon = {
+            x: 120,
+            y: 0,
+            angle: -Math.PI / 6,
+            power: 16,
+            barrelLength: 70,
+            barrelWidth: 36
+        };
+
+        let cannonballs = [];
+        let pins = [];
+        let balloons = [];
+        let particles = [];
+
+        const levels = [
+            {
+                title: "第 1 關：歡樂大碰撞",
+                desc: "用木頭與玻璃保齡球來練習吧！",
+                balls: 5,
+                pins: [
+                    { x: 0.65, y: 0, type: 'wood' },
+                    { x: 0.73, y: 0, type: 'wood' },
+                    { x: 0.81, y: 0, type: 'glass' },
+                    { x: 0.69, y: -80, type: 'glass' },
+                    { x: 0.77, y: -80, type: 'wood' },
+                    { x: 0.73, y: -160, type: 'wood' }
+                ],
+                balloons: []
+            },
+            {
+                title: "第 2 關：氣球派對",
+                desc: "擊倒保齡球，順便戳破彩虹氣球！",
+                balls: 5,
+                pins: [
+                    { x: 0.60, y: 0, type: 'wood' },
+                    { x: 0.70, y: 0, type: 'glass' },
+                    { x: 0.80, y: 0, type: 'metal' },
+                    { x: 0.65, y: -80, type: 'glass' },
+                    { x: 0.75, y: -80, type: 'wood' }
+                ],
+                balloons: [
+                    { x: 0.55, y: 0.3, color: '#FF6B6B' },
+                    { x: 0.68, y: 0.2, color: '#4ECDC4' },
+                    { x: 0.82, y: 0.35, color: '#FFE66D' }
+                ]
+            },
+            {
+                title: "第 3 關：重金屬大挑戰",
+                desc: "金屬保齡球很重，用大力砲彈撞倒它們！",
+                balls: 6,
+                pins: [
+                    { x: 0.60, y: 0, type: 'metal' },
+                    { x: 0.70, y: 0, type: 'metal' },
+                    { x: 0.80, y: 0, type: 'metal' },
+                    { x: 0.65, y: -80, type: 'metal' },
+                    { x: 0.75, y: -80, type: 'glass' },
+                    { x: 0.70, y: -160, type: 'wood' }
+                ],
+                balloons: [
+                    { x: 0.70, y: 0.15, color: '#FF8ED4' }
+                ]
+            }
+        ];
+
+        class Pin {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.width = 30;
+                this.height = 70;
+                this.vx = 0;
+                this.vy = 0;
+                this.angle = 0;
+                this.vAngle = 0;
+                this.isKnocked = false;
+                this.isBroken = false;
+
+                if (type === 'wood') {
+                    this.mass = 1.0;
+                } else if (type === 'glass') {
+                    this.mass = 0.5;
+                } else if (type === 'metal') {
+                    this.mass = 2.5;
+                }
+            }
+
+            update() {
+                if (this.isBroken) return;
+
+                this.x += this.vx;
+                this.y += this.vy;
+                this.angle += this.vAngle;
+
+                this.vy += 0.3;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.vAngle *= 0.95;
+
+                const groundY = height - 70;
+                if (this.y + this.height/2 > groundY) {
+                    this.y = groundY - this.height/2;
+                    this.vy = -this.vy * 0.3;
+                    if (Math.abs(this.angle) > 0.3) {
+                        this.isKnocked = true;
+                    }
+                }
+            }
+
+            draw() {
+                if (this.isBroken) return;
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                if (this.type === 'wood') {
+                    ctx.fillStyle = '#E6CCB2';
+                    ctx.beginPath();
+                    ctx.roundRect(-this.width/2, -this.height/2, this.width, this.height, [15, 15, 5, 5]);
+                    ctx.fill();
+                    ctx.strokeStyle = '#B08968';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#E63946';
+                    ctx.fillRect(-this.width/2 + 2, -15, this.width - 4, 6);
+                } else if (this.type === 'glass') {
+                    ctx.fillStyle = 'rgba(168, 218, 220, 0.7)';
+                    ctx.beginPath();
+                    ctx.roundRect(-this.width/2, -this.height/2, this.width, this.height, [15, 15, 5, 5]);
+                    ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.fillRect(-this.width/4, -this.height/3, 5, this.height/2);
+                } else if (this.type === 'metal') {
+                    const grad = ctx.createLinearGradient(-this.width/2, 0, this.width/2, 0);
+                    grad.addColorStop(0, '#D4AF37');
+                    grad.addColorStop(0.5, '#FFF275');
+                    grad.addColorStop(1, '#AA7C11');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.roundRect(-this.width/2, -this.height/2, this.width, this.height, [15, 15, 5, 5]);
+                    ctx.fill();
+                    ctx.strokeStyle = '#6C5800';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(-6, -15, 3, 0, Math.PI * 2);
+                ctx.arc(6, -15, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Balloon {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = 25;
+                this.swing = Math.random() * 100;
+                this.isPopped = false;
+            }
+
+            update() {
+                this.swing += 0.03;
+                this.y += Math.sin(this.swing) * 0.5;
+            }
+
+            draw() {
+                if (this.isPopped) return;
+                ctx.save();
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.radius);
+                ctx.lineTo(this.x, this.y + this.radius + 20);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, size = 6) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * size + 3;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.life = 1.0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.03;
+            }
+
+            draw() {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Cannonball {
+            constructor(x, y, vx, vy) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.radius = 16;
+                this.active = true;
+            }
+
+            update() {
+                if (!this.active) return;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.25;
+
+                if (this.x > width + 50 || this.y > height) {
+                    this.active = false;
+                }
+            }
+
+            draw() {
+                if (!this.active) return;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+                if (currentSkinIndex === 0) {
+                    const grad = ctx.createRadialGradient(this.x, this.y, 2, this.x, this.y, this.radius);
+                    grad.addColorStop(0, '#FFD166');
+                    grad.addColorStop(0.5, '#EF476F');
+                    grad.addColorStop(1, '#118AB2');
+                    ctx.fillStyle = grad;
+                } else if (currentSkinIndex === 1) {
+                    ctx.fillStyle = '#FFD166';
+                } else {
+                    ctx.fillStyle = '#FF4D6D';
+                }
+
+                ctx.fill();
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function loadLevel(lvlIdx) {
+            // 清除過關定時器與狀態
+            if (levelClearTimeout) {
+                clearTimeout(levelClearTimeout);
+                levelClearTimeout = null;
+            }
+            isLevelCleared = false;
+
+            // 隱藏結算 Modal 並取消指標阻擋
+            const modal = document.getElementById('victory-modal');
+            modal.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+            modal.classList.remove('pointer-events-auto');
+
+            pins = [];
+            balloons = [];
+            cannonballs = [];
+            particles = [];
+
+            const lvl = levels[lvlIdx - 1];
+            ballsLeft = lvl.balls;
+
+            document.getElementById('level-title').innerText = lvl.title;
+            document.getElementById('level-desc').innerText = lvl.desc;
+            document.getElementById('balls-left').innerText = ballsLeft;
+
+            const groundY = height - 70;
+
+            lvl.pins.forEach(p => {
+                const px = width * p.x;
+                const py = groundY - 35 + p.y;
+                pins.push(new Pin(px, py, p.type));
+            });
+
+            lvl.balloons.forEach(b => {
+                balloons.push(new Balloon(width * b.x, height * b.y, b.color));
+            });
+        }
+
+        let isDragging = false;
+
+        function updateCannonAngle(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = clientX - rect.left;
+            const mouseY = clientY - rect.top;
+
+            cannon.y = height - 90;
+            cannon.x = 100;
+
+            const dx = mouseX - cannon.x;
+            const dy = mouseY - cannon.y;
+            cannon.angle = Math.atan2(dy, dx);
+
+            if (cannon.angle > -0.1) cannon.angle = -0.1;
+            if (cannon.angle < -Math.PI / 2 + 0.1) cannon.angle = -Math.PI / 2 + 0.1;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            updateCannonAngle(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                updateCannonAngle(e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        canvas.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            if (e.touches.length > 0) {
+                updateCannonAngle(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length > 0) {
+                updateCannonAngle(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+
+        window.addEventListener('touchend', () => { isDragging = false; });
+
+        function fireCannon() {
+            if (ballsLeft <= 0 || isLevelCleared) return;
+
+            sound.playCannon();
+            ballsLeft--;
+            document.getElementById('balls-left').innerText = ballsLeft;
+
+            const startX = cannon.x + Math.cos(cannon.angle) * cannon.barrelLength;
+            const startY = cannon.y + Math.sin(cannon.angle) * cannon.barrelLength;
+
+            const vx = Math.cos(cannon.angle) * cannon.power;
+            const vy = Math.sin(cannon.angle) * cannon.power;
+
+            cannonballs.push(new Cannonball(startX, startY, vx, vy));
+
+            for (let i = 0; i < 15; i++) {
+                particles.push(new Particle(startX, startY, '#FFD166', 8));
+            }
+        }
+
+        document.getElementById('btn-fire').addEventListener('click', fireCannon);
+
+        document.getElementById('btn-skin').addEventListener('click', () => {
+            sound.playPop();
+            currentSkinIndex = (currentSkinIndex + 1) % cannonSkins.length;
+            document.getElementById('btn-skin').innerText = cannonSkins[currentSkinIndex];
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            sound.playPop();
+            loadLevel(currentLevel);
+        });
+
+        document.getElementById('btn-next-level').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            sound.playPop();
+
+            // 即刻變更關卡指標並載入
+            currentLevel = (currentLevel % levels.length) + 1;
+            loadLevel(currentLevel);
+        });
+
+        function showCheer(text) {
+            const overlay = document.getElementById('cheer-overlay');
+            const cheerText = document.getElementById('cheer-text');
+            cheerText.innerText = text;
+            overlay.classList.remove('opacity-0', 'scale-50');
+            overlay.classList.add('opacity-100', 'scale-100');
+
+            setTimeout(() => {
+                overlay.classList.remove('opacity-100', 'scale-100');
+                overlay.classList.add('opacity-0', 'scale-50');
+            }, 1200);
+        }
+
+        function checkCollisions() {
+            cannonballs.forEach(ball => {
+                if (!ball.active) return;
+
+                pins.forEach(pin => {
+                    if (pin.isBroken) return;
+
+                    const dx = ball.x - pin.x;
+                    const dy = ball.y - pin.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < ball.radius + pin.width) {
+                        if (pin.type === 'wood') {
+                            sound.playWoodHit();
+                            pin.vx = ball.vx * 0.6 / pin.mass;
+                            pin.vy = ball.vy * 0.6 / pin.mass;
+                            pin.vAngle = 0.2;
+                            if (!pin.isKnocked) {
+                                score += 100;
+                                pin.isKnocked = true;
+                                showCheer("好棒哦！🪵");
+                            }
+                        } else if (pin.type === 'glass') {
+                            sound.playGlassBreak();
+                            pin.isBroken = true;
+                            score += 150;
+                            showCheer("漂亮的擊碎！💎");
+                            for (let i = 0; i < 20; i++) {
+                                particles.push(new Particle(pin.x, pin.y, '#A8DADC', 6));
+                            }
+                        } else if (pin.type === 'metal') {
+                            sound.playMetalDing();
+                            pin.vx = ball.vx * 0.3 / pin.mass;
+                            pin.vy = ball.vy * 0.3 / pin.mass;
+                            pin.vAngle = 0.1;
+                            if (!pin.isKnocked) {
+                                score += 200;
+                                pin.isKnocked = true;
+                                showCheer("超級大力！⚙️");
+                            }
+                        }
+
+                        document.getElementById('score-display').innerText = score;
+                    }
+                });
+
+                balloons.forEach(balloon => {
+                    if (balloon.isPopped) return;
+
+                    const dx = ball.x - balloon.x;
+                    const dy = ball.y - balloon.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < ball.radius + balloon.radius) {
+                        balloon.isPopped = true;
+                        sound.playPop();
+                        score += 80;
+                        document.getElementById('score-display').innerText = score;
+                        showCheer("氣球破囉！🎈");
+                        for (let i = 0; i < 15; i++) {
+                            particles.push(new Particle(balloon.x, balloon.y, balloon.color, 7));
+                        }
+                    }
+                });
+            });
+        }
+
+        function checkLevelClear() {
+            if (isLevelCleared || pins.length === 0) return;
+
+            const allPinsCleared = pins.every(p => p.isKnocked || p.isBroken);
+            if (allPinsCleared) {
+                isLevelCleared = true;
+                levelClearTimeout = setTimeout(() => {
+                    sound.playCheer();
+                    document.getElementById('final-score').innerText = score;
+                    const modal = document.getElementById('victory-modal');
+                    modal.classList.remove('hidden', 'pointer-events-none');
+                    modal.classList.add('pointer-events-auto');
+                    setTimeout(() => {
+                        modal.classList.remove('opacity-0');
+                    }, 50);
+                }, 800);
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.fillStyle = '#C7F9CC';
+            ctx.fillRect(0, height - 70, width, 70);
+
+            ctx.fillStyle = '#57CC99';
+            ctx.fillRect(0, height - 70, width, 10);
+
+            cannon.y = height - 90;
+            cannon.x = 100;
+
+            ctx.save();
+            ctx.translate(cannon.x, cannon.y);
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            let simX = 0, simY = 0;
+            let simVx = Math.cos(cannon.angle) * cannon.power;
+            let simVy = Math.sin(cannon.angle) * cannon.power;
+            for (let i = 0; i < 20; i++) {
+                simX += simVx;
+                simY += simVy;
+                simVy += 0.25;
+                ctx.lineTo(simX, simY);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.rotate(cannon.angle);
+            ctx.fillStyle = '#38B000';
+            ctx.beginPath();
+            ctx.roundRect(0, -cannon.barrelWidth/2, cannon.barrelLength, cannon.barrelWidth, 10);
+            ctx.fill();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.restore();
+
+            ctx.fillStyle = '#70e000';
+            ctx.beginPath();
+            ctx.arc(cannon.x, cannon.y, 28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            balloons.forEach(b => {
+                b.update();
+                b.draw();
+            });
+
+            pins.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            cannonballs.forEach(b => {
+                b.update();
+                b.draw();
+            });
+
+            particles.forEach((p, idx) => {
+                p.update();
+                p.draw();
+                if (p.life <= 0) particles.splice(idx, 1);
+            });
+
+            checkCollisions();
+            checkLevelClear();
+
+            requestAnimationFrame(render);
+        }
+
+        window.onload = () => {
+            resize();
+            loadLevel(1);
+            render();
+        };
+    </script>
+</body>
+</html>
